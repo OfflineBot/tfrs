@@ -18,6 +18,7 @@ fn main() {
     let config = EncoderConfig::new(
         512, 
         (-1., 1.), 
+        0.001,
         10, 
         Activation::ReLU, 
         Loss::MSE, 
