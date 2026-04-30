@@ -5,6 +5,7 @@ use crate::utils::{Activation, Loss, Optimizer};
 
 
 /// per definition *1 hidden layer* with *ReLU* activation
+#[derive(Clone)]
 pub struct NeuralNetworkConfig {
     pub input_size: usize,
     pub hidden_size: usize,
@@ -24,6 +25,7 @@ impl NeuralNetworkConfig {
 }
 
 
+#[derive(Clone)]
 pub struct LayerParams {
 
     pub weights_1: Array2<f32>,
@@ -49,6 +51,7 @@ pub struct LayerParams {
 
 
 /// per definition *1 hidden layer* with *ReLU* activation
+#[derive(Clone)]
 pub struct NeuralNetwork {
     pub config: NeuralNetworkConfig,
     pub activation: Activation,
