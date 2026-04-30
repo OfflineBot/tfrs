@@ -10,14 +10,16 @@ pub struct NeuralNetworkConfig {
     pub input_size: usize,
     pub hidden_size: usize,
     pub output_size: usize,
+    pub learning_rate: f32,
 }
 
 impl NeuralNetworkConfig {
-    pub fn new(input_size: usize, hidden_size: usize, output_size: usize) -> Self {
+    pub fn new(input_size: usize, hidden_size: usize, output_size: usize, learning_rate: f32) -> Self {
         Self {
             input_size,
             hidden_size,
             output_size,
+            learning_rate,
         }
     }
 }
@@ -32,10 +34,15 @@ pub struct LayerParams {
     pub biases_2: Array1<f32>,
 
     // ==== CACHE ====
-    pub input: Option<Array2<f32>>,
-    pub z1: Option<Array2<f32>>,
-    pub a1: Option<Array2<f32>>,
-    pub z2: Option<Array2<f32>>,
+    // ---- Foward ---
+    pub(super) input: Option<Array2<f32>>,
+    pub(super) z1: Option<Array2<f32>>,
+    pub(super) a1: Option<Array2<f32>>,
+    pub(super) z2: Option<Array2<f32>>,
+
+    // --- Backward ---
+    pub(super) grad_1: Option<Array2<f32>>,
+    pub(super) grad_2: Option<Array2<f32>>,
 }
 
 

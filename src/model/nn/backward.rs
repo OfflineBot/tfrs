@@ -9,5 +9,9 @@ impl LayerParams {
     pub fn backward(&mut self, truth: &Array2<f32>, activation: Activation) {
 
     }
+
+    #[allow(dead_code)]
+    pub fn zero_grad(&mut self) {
+    }
 }
 

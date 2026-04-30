@@ -17,7 +17,10 @@ impl LayerParams {
             input: None,
             a1: None,
             z1: None,
-            z2: None
+            z2: None,
+
+            grad_1: None,
+            grad_2: None,
         }
     }
 }
