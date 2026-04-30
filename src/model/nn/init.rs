@@ -19,8 +19,11 @@ impl LayerParams {
             z1: None,
             z2: None,
 
-            grad_1: None,
-            grad_2: None,
+            weight_grad_1: None,
+            weight_grad_2: None,
+
+            bias_grad_1: None,
+            bias_grad_2: None,
         }
     }
 }
