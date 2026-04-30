@@ -1,6 +1,5 @@
 
 use ndarray::Array2;
-use ndarray_rand::rand_distr::Uniform;
 
 use crate::{model::{nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer, xavier_init}};
 
@@ -24,6 +23,7 @@ pub struct DecoderConfig {
 
 
 impl DecoderConfig {
+    #[allow(unused)]
     pub fn new(
         d_model: usize,
         random_inits: (f32, f32),
@@ -47,6 +47,7 @@ impl DecoderConfig {
 
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct Decoder {
 
     config: DecoderConfig,
@@ -71,8 +72,6 @@ pub struct Decoder {
 impl Decoder {
 
     pub fn new(config: DecoderConfig) -> Self {
-
-        let dist = Uniform::new(config.random_inits.0, config.random_inits.1).unwrap();
 
         let nn_config = NeuralNetworkConfig::new(config.d_model, config.d_ff, config.d_model, config.random_inits);
 

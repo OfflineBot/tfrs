@@ -1,6 +1,7 @@
 use ndarray::{Array1, Array2, Axis};
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AddNorm {
     gamma: Array1<f32>,
     beta: Array1<f32>,
@@ -22,6 +23,7 @@ impl AddNorm {
         }
     }
 
+    #[allow(unused)]
     pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
         let mean = x.mean_axis(Axis(1)).unwrap().insert_axis(Axis(1));
         let var = x.var_axis(Axis(1), 0.).insert_axis(Axis(1));

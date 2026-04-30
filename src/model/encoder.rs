@@ -1,5 +1,4 @@
-use ndarray::{Array1, Array2};
-use ndarray_rand::{RandomExt, rand_distr::Uniform};
+use ndarray::Array2;
 
 use crate::{model::{nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer, xavier_init}};
 
@@ -46,6 +45,7 @@ impl EncoderConfig {
 
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct Encoder {
 
     config: EncoderConfig,
