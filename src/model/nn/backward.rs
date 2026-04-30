@@ -8,8 +8,7 @@ impl LayerParams {
     #[allow(dead_code)]
     pub fn backward(&mut self, mut delta: Array2<f32>, activation: Activation) -> Array2<f32> {
 
-        let z2 = self.z2.clone().unwrap();
-        let delta2 = delta * &activation.derivative(&z2);
+        let delta2 = delta;
         let a1 = self.a1.clone().unwrap();
         let grad_weight2 = a1.t().dot(&delta2);
         let grad_bias2: Array1<f32> = delta2.sum_axis(Axis(0));

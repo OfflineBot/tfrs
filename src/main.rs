@@ -33,8 +33,16 @@ fn main() {
         [1.],
     ];
 
-    let out = nn.forward(&input);
-    nn.backward(&truth);
-    nn.step();
+    let epochs = 1_000;
+
+    for i in 0..epochs {
+        nn.forward(&input);
+        if i % (epochs/10) == 0 {
+            let loss = nn.item_loss(&truth);
+            println!("{} | Loss: {}", i+1, loss);
+        }
+        nn.backward(&truth);
+        nn.step();
+    }
 }
 

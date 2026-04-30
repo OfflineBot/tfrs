@@ -90,5 +90,14 @@ impl NeuralNetwork {
 
     }
 
+
+    pub fn item_loss(&self, truth: &Array2<f32>) -> f32 {
+        if let Some(prediction) = &self.layer.z2 {
+            self.loss.loss_item(truth, &prediction)
+        } else {
+            println!("no prediction found!");
+            0.
+        }
+    }
 }
 
