@@ -10,16 +10,14 @@ pub struct NeuralNetworkConfig {
     pub input_size: usize,
     pub hidden_size: usize,
     pub output_size: usize,
-    pub init_weights_range: (f32, f32),
 }
 
 impl NeuralNetworkConfig {
-    pub fn new(input_size: usize, hidden_size: usize, output_size: usize, init_weights_range: (f32, f32)) -> Self {
+    pub fn new(input_size: usize, hidden_size: usize, output_size: usize) -> Self {
         Self {
             input_size,
             hidden_size,
             output_size,
-            init_weights_range,
         }
     }
 }
@@ -64,7 +62,7 @@ pub struct NeuralNetwork {
 impl NeuralNetwork {
     pub fn new(config: NeuralNetworkConfig, activation: Activation, loss: Loss, optimizer: Optimizer) -> Self {
 
-        let layer = LayerParams::init(config.input_size, config.hidden_size, config.output_size, config.init_weights_range);
+        let layer = LayerParams::init(config.input_size, config.hidden_size, config.output_size);
 
         Self {
             config,

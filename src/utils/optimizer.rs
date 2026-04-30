@@ -31,3 +31,20 @@ impl Optimizer {
     }
 }
 
+
+#[derive(Clone, Copy)]
+pub enum TransformerOptimizer {
+    ADAM,
+}
+
+impl TransformerOptimizer {
+    pub fn apply(
+        &self,
+    ) {
+        match self {
+            Self::ADAM => {
+            }
+        }
+    }
+}
+

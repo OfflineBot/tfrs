@@ -1,16 +1,12 @@
 
 use ndarray::Array2;
 
-use crate::{model::{nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer, xavier_init}};
+use crate::{model::{attention::Attention, nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer}};
 
 
 #[derive(Clone, Copy)]
 pub struct DecoderConfig {
-    /// dimension of tokens (array length/size for each token)
-    d_model: usize,
-
-    random_inits: (f32, f32),
-
+    n_heads: usize,
     eps: f32,
 
     // ====== neural network =======
@@ -25,8 +21,7 @@ pub struct DecoderConfig {
 impl DecoderConfig {
     #[allow(unused)]
     pub fn new(
-        d_model: usize,
-        random_inits: (f32, f32),
+        n_heads: usize,
         eps: f32,
         d_ff: usize,
         activation_ff: Activation,
@@ -34,8 +29,7 @@ impl DecoderConfig {
         optim_ff: Optimizer,
     ) -> Self {
         Self {
-            d_model, 
-            random_inits, 
+            n_heads,
             eps,
             d_ff, 
             activation_ff,
@@ -52,47 +46,34 @@ pub struct Decoder {
 
     config: DecoderConfig,
 
-    self_w_q: Array2<f32>,
-    self_w_k: Array2<f32>,
-    self_w_v: Array2<f32>,
-    self_w_o: Option<Array2<f32>>,
+    cross_attention: Attention,
+    add_norm1: AddNorm,
 
-    cross_w_q: Array2<f32>,
-    cross_w_k: Array2<f32>,
-    cross_w_v: Array2<f32>,
-    cross_w_o: Option<Array2<f32>>,
+    self_attention: Attention,
+    add_norm2: AddNorm,
 
     ff: NeuralNetwork,
-
-    add_norm1: AddNorm,
-    add_norm2: AddNorm,
     add_norm3: AddNorm,
+
 }
 
 impl Decoder {
 
-    pub fn new(config: DecoderConfig) -> Self {
+    pub fn new(config: DecoderConfig, d_model: usize) -> Self {
 
-        let nn_config = NeuralNetworkConfig::new(config.d_model, config.d_ff, config.d_model, config.random_inits);
+        let nn_config = NeuralNetworkConfig::new(d_model, config.d_ff, d_model);
 
         Self {
             config,
 
-            self_w_q: xavier_init(config.d_model, config.d_model),
-            self_w_k: xavier_init(config.d_model, config.d_model),
-            self_w_v: xavier_init(config.d_model, config.d_model),
-            self_w_o: None,
-
-            cross_w_q: xavier_init(config.d_model, config.d_model),
-            cross_w_k: xavier_init(config.d_model, config.d_model),
-            cross_w_v: xavier_init(config.d_model, config.d_model),
-            cross_w_o: None,
+            self_attention: Attention::new(d_model, config.n_heads),
+            cross_attention: Attention::new(d_model, config.n_heads),
 
             ff: NeuralNetwork::new(nn_config, config.activation_ff, config.loss_ff, config.optim_ff),
 
-            add_norm1: AddNorm::new(config.d_model, config.eps),
-            add_norm2: AddNorm::new(config.d_model, config.eps),
-            add_norm3: AddNorm::new(config.d_model, config.eps),
+            add_norm1: AddNorm::new(d_model, config.eps),
+            add_norm2: AddNorm::new(d_model, config.eps),
+            add_norm3: AddNorm::new(d_model, config.eps),
         }
     }
 }

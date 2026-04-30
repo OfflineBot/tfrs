@@ -1,18 +1,16 @@
-use ndarray::{Array1, Array2};
-use ndarray_rand::{RandomExt, rand_distr::Uniform};
-use crate::model::nn::nn::LayerParams;
+use ndarray::Array1;
+use crate::{model::nn::nn::LayerParams, utils::xavier_init};
 
 impl LayerParams {
 
     #[allow(dead_code)]
-    pub fn init(input_size: usize, hidden_size: usize, output_size: usize, random_range: (f32, f32)) -> Self {
-        let dist = Uniform::new(random_range.0, random_range.1).unwrap();
+    pub fn init(input_size: usize, hidden_size: usize, output_size: usize) -> Self {
         Self {
-            weights_1: Array2::random((input_size, hidden_size), dist),
-            biases_1: Array1::random(hidden_size, dist),
+            weights_1: xavier_init(input_size, hidden_size),
+            biases_1: Array1::zeros(hidden_size),
 
-            weights_2: Array2::random((hidden_size, output_size), dist),
-            biases_2: Array1::random(output_size, dist),
+            weights_2: xavier_init(hidden_size, output_size),
+            biases_2: Array1::zeros(output_size),
 
             input: None,
             a1: None,

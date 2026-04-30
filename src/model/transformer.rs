@@ -1,27 +1,30 @@
 #![allow(dead_code)]
 
-use crate::model::{decoder::{Decoder, DecoderBlock, DecoderConfig}, encoder::{Encoder, EncoderBlock, EncoderConfig}};
+use ndarray::{Array1, Array2};
+
+use crate::{model::{decoder::{Decoder, DecoderBlock, DecoderConfig}, encoder::{Encoder, EncoderBlock, EncoderConfig}}, utils::{TransformerOptimizer, xavier_init}};
 
 pub struct Transformer {
+
+    d_model: usize,
+
     encoder: EncoderBlock,
     decoder: DecoderBlock,
+
+    w_out: Array2<f32>,
+    b_out: Array1<f32>,
 }
 
 impl Transformer {
-    pub fn new_empty() -> Self {
-        Self { encoder: EncoderBlock::new(), decoder: DecoderBlock::new() }
-    }
-
-    pub fn new_decoder_only(decoder: DecoderBlock) -> Self {
-        Self { encoder: EncoderBlock::new(), decoder }
-    }
-
-    pub fn new_encoder_only(encoder: EncoderBlock) -> Self {
-        Self { encoder, decoder: DecoderBlock::new() }
-    }
-
-    pub fn new(encoder: EncoderBlock, decoder: DecoderBlock) -> Self {
-        Self { encoder, decoder }
+    // ============== PROPERTY FUNCTIONS ================
+    pub fn new_empty(d_model: usize, num_classes: usize) -> Self {
+        Self { 
+            encoder: EncoderBlock::new(),
+            decoder: DecoderBlock::new(),
+            d_model,
+            w_out: xavier_init(d_model, num_classes),
+            b_out: Array1::zeros(num_classes)
+        }
     }
 
     pub fn set_encoder(&mut self, encoder: EncoderBlock) { self.encoder = encoder; }
@@ -32,14 +35,27 @@ impl Transformer {
 
     pub fn set_encoder_configs(&mut self, encoder: Vec<EncoderConfig>) {
         for e in encoder {
-            self.encoder.insert(Encoder::new(e));
+            self.encoder.insert(Encoder::new(e, self.d_model));
         }
     }
 
     pub fn set_decoder_configs(&mut self, decoder: Vec<DecoderConfig>) {
         for d in decoder {
-            self.decoder.insert(Decoder::new(d));
+            self.decoder.insert(Decoder::new(d, self.d_model));
         }
+    }
+
+    // ============== TRAINING =========================
+    pub fn forward(src: Array2<f32>, target: Array2<f32>) -> Array2<f32> {
+        Array2::zeros((0, 0))
+    }
+
+    pub fn backward(delta: Array2<f32>) {
+
+    }
+
+    pub fn step(optimizer: TransformerOptimizer) {
+        optimizer.apply();
     }
 }
 

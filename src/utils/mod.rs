@@ -6,7 +6,7 @@ mod loss;
 pub use loss::Loss;
 
 mod optimizer;
-pub use optimizer::Optimizer;
+pub use optimizer::{Optimizer, TransformerOptimizer};
 
 mod xavier;
 pub use xavier::xavier_init;

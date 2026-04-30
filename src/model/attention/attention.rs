@@ -5,13 +5,12 @@ use ndarray::{Array2, Axis};
 use crate::utils::xavier_init;
 
 
+#[derive(Clone)]
 pub struct Attention {
     pub w_q: Array2<f32>,
     pub w_k: Array2<f32>,
     pub w_v: Array2<f32>,
     pub w_o: Array2<f32>,
-
-    d_model: usize,
 
     n_heads: usize,
     d_head: usize, // d_model / n_heads
@@ -32,7 +31,6 @@ impl Attention {
         Self {
             d_head: d_model / n_heads,
             n_heads,
-            d_model,
             w_q: xavier_init(d_model, d_model),
             w_k: xavier_init(d_model, d_model),
             w_v: xavier_init(d_model, d_model),

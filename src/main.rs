@@ -13,15 +13,14 @@ mod utils;
 
 fn main() {
 
-    let mut transformer = Transformer::new_empty();
+    let mut transformer = Transformer::new_empty(512, 10);
 
     let config = EncoderConfig::new(
-        512, 
-        (-1., 1.), 
+        1,
         0.001,
-        10, 
-        Activation::ReLU, 
-        Loss::MSE, 
+        10,
+        Activation::ReLU,
+        Loss::MSE,
         Optimizer::SGD(0.01)
     );
 
