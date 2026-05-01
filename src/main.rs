@@ -13,7 +13,7 @@ mod utils;
 
 fn main() {
 
-    let mut transformer = Transformer::new_empty(512, 10);
+    let mut transformer = Transformer::new_empty(512, 30_000, 30_000, 10);
 
     let config = EncoderConfig::new(
         1,

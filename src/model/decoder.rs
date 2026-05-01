@@ -1,7 +1,7 @@
 
 use ndarray::Array2;
 
-use crate::{model::{attention::Attention, nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer}};
+use crate::{model::{attention::Attention, nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer, Trainable}};
 
 
 #[derive(Clone, Copy)]
@@ -77,18 +77,45 @@ impl Decoder {
         }
     }
 
-    pub fn forward(&mut self, x: &Array2<f32>, memory: &Array2<f32>, causal_mask: Option<&Array2<f32>>) -> Array2<f32> {
-
+    pub fn forward(
+        &mut self, 
+        x: &Array2<f32>, 
+        memory: Option<&Array2<f32>>, 
+        causal_mask: Option<&Array2<f32>>
+    ) -> Array2<f32> {
         let sa = self.self_attention.forward(x, x, causal_mask);
         let x1 = self.add_norm1.forward(x, &sa);
-
-        let ca = self.cross_attention.forward(&x1, memory, None);
-        let x2 = self.add_norm2.forward(&x1, &ca);
-
+        let x2 = match memory {
+            Some(mem) => {
+                let ca = self.cross_attention.forward(&x1, mem, None);
+                self.add_norm2.forward(&x1, &ca)
+            },
+            None => x1,
+        };
         let ff = self.ff.forward(&x2);
         let x3 = self.add_norm3.forward(&x2, &ff);
-
         x3
+    }
+}
+
+
+impl Trainable for Decoder {
+    fn update(&mut self, opt: &Optimizer) {
+        self.self_attention.update(opt);
+        self.add_norm1.update(opt);
+        self.cross_attention.update(opt);
+        self.add_norm2.update(opt);
+        self.ff.update(opt);
+        self.add_norm3.update(opt);
+    }
+
+    fn clear_grads(&mut self) {
+        self.self_attention.clear_grads();
+        self.add_norm1.clear_grads();
+        self.cross_attention.clear_grads();
+        self.add_norm2.clear_grads();
+        self.ff.clear_grads();
+        self.add_norm3.clear_grads();
     }
 }
 
@@ -106,7 +133,7 @@ impl DecoderBlock {
         self.layers.push(encoder);
     }
 
-    pub fn forward(&mut self, x: &Array2<f32>, memory: &Array2<f32>, causal_mask: Option<&Array2<f32>>) -> Array2<f32> {
+    pub fn forward(&mut self, x: &Array2<f32>, memory: Option<&Array2<f32>>, causal_mask: Option<&Array2<f32>>) -> Array2<f32> {
         let mut input = x.clone();
 
         for d in self.layers.iter_mut() {
@@ -115,9 +142,20 @@ impl DecoderBlock {
 
         input
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.layers.is_empty()
+
+impl Trainable for DecoderBlock {
+    fn update(&mut self, opt: &Optimizer) {
+        for d in self.layers.iter_mut() {
+            d.update(opt);
+        }
+    }
+
+    fn clear_grads(&mut self) {
+        for d in self.layers.iter_mut() {
+            d.clear_grads();
+        }
     }
 }
 

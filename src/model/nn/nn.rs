@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use ndarray::{Array1, Array2};
-use crate::utils::{Activation, Loss, Optimizer};
+use crate::utils::{Activation, Loss, Optimizer, Trainable};
 
 
 /// per definition *1 hidden layer* with *ReLU* activation
@@ -47,6 +47,28 @@ pub struct LayerParams {
     pub bias_grad_2: Option<Array1<f32>>,
 }
 
+impl Trainable for LayerParams {
+    fn update(&mut self, opt: &Optimizer) {
+        opt.step_w(&mut self.weights_1, self.weight_grad_1.as_ref().unwrap());
+        opt.step_w(&mut self.weights_2, self.weight_grad_2.as_ref().unwrap());
+        opt.step_b(&mut self.biases_1, self.bias_grad_1.as_ref().unwrap());
+        opt.step_b(&mut self.biases_2, self.bias_grad_2.as_ref().unwrap());
+    }
+
+    fn clear_grads(&mut self) {
+        self.input = None;
+        self.z1 = None;
+        self.a1 = None;
+        self.z2 = None;
+
+        self.weight_grad_1 = None;
+        self.weight_grad_2 = None;
+
+        self.bias_grad_1 = None;
+        self.bias_grad_2 = None;
+    }
+}
+
 
 /// per definition *1 hidden layer* with *ReLU* activation
 #[derive(Clone)]
@@ -85,13 +107,6 @@ impl NeuralNetwork {
         self.layer.backward(error, self.activation);
     }
 
-    pub fn step(&mut self) {
-        self.layer.update(self.optim);
-        self.layer.clear_cache();
-
-    }
-
-
     pub fn item_loss(&self, truth: &Array2<f32>) -> f32 {
         if let Some(prediction) = &self.layer.z2 {
             self.loss.loss_item(truth, &prediction)
@@ -99,6 +114,16 @@ impl NeuralNetwork {
             println!("no prediction found!");
             0.
         }
+    }
+}
+
+impl Trainable for NeuralNetwork {
+    fn update(&mut self, _opt: &Optimizer) {
+        self.layer.update(&self.optim);
+    }
+
+    fn clear_grads(&mut self) {
+        self.layer.clear_grads();
     }
 }
 

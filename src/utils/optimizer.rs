@@ -1,50 +1,34 @@
 
-use crate::model::nn::LayerParams;
+use ndarray::{Array1, Array2};
+
+pub trait Trainable {
+    fn update(&mut self, opt: &Optimizer);
+    fn clear_grads(&mut self);
+}
+
 
 #[derive(Clone, Copy)]
 pub enum Optimizer {
     /// `SGD` with *learning rate* as *f32*
     SGD(f32),
+    ADAM,
 }
 
 
 impl Optimizer {
-    pub fn apply(
-        &self, 
-        layer_params: &mut LayerParams,
-    ) {
+    pub fn step_w(&self, w: &mut Array2<f32>, g: &Array2<f32>) {
         match self {
-            Self::SGD(lr) => {
-                let wg1 = layer_params.weight_grad_1.clone().unwrap();
-                let wg2 = layer_params.weight_grad_2.clone().unwrap();
+            Self::SGD(lr) => *w -= &(g * *lr),
+            Self::ADAM => {},
+        }
+    }
 
-                let bg1 = layer_params.bias_grad_1.clone().unwrap();
-                let bg2 = layer_params.bias_grad_2.clone().unwrap();
-
-                layer_params.weights_1 -= &(&wg1 * lr.clone());
-                layer_params.weights_2 -= &(&wg2 * lr.clone());
-
-                layer_params.biases_1 -= &(bg1 * lr.clone());
-                layer_params.biases_2 -= &(bg2 * lr.clone());
-            },
+    pub fn step_b(&self, w: &mut Array1<f32>, g: &Array1<f32>) {
+        match self {
+            Self::SGD(lr) => *w -= &(g * *lr),
+            Self::ADAM => {},
         }
     }
 }
 
-
-#[derive(Clone, Copy)]
-pub enum TransformerOptimizer {
-    ADAM,
-}
-
-impl TransformerOptimizer {
-    pub fn apply(
-        &self,
-    ) {
-        match self {
-            Self::ADAM => {
-            }
-        }
-    }
-}
 

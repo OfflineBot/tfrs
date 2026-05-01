@@ -2,7 +2,7 @@ use core::f32;
 
 use ndarray::{Array2, Array3, Axis};
 
-use crate::utils::xavier_init;
+use crate::utils::{Trainable, xavier_init};
 
 
 #[derive(Clone)]
@@ -18,6 +18,13 @@ pub struct Attention {
     // ===== cache =====
     input_q: Option<Array2<f32>>,
     input_kv: Option<Array2<f32>>,
+
+
+    w_q_grad: Option<Array2<f32>>,
+    w_k_grad: Option<Array2<f32>>,
+    w_v_grad: Option<Array2<f32>>,
+    w_o_grad: Option<Array2<f32>>,
+
     q: Option<Array3<f32>>,
     k: Option<Array3<f32>>,
     v: Option<Array3<f32>>,
@@ -38,6 +45,10 @@ impl Attention {
 
             input_q: None,
             input_kv: None,
+            w_q_grad: None,
+            w_k_grad: None,
+            w_v_grad: None,
+            w_o_grad: None,
             q: None,
             k: None,
             v: None,
@@ -103,6 +114,29 @@ impl Attention {
         let exp = (x - &max).mapv(f32::exp);
         let sum = exp.sum_axis(Axis(1)).insert_axis(Axis(1));
         exp / sum
+    }
+}
+
+impl Trainable for Attention {
+    fn update(&mut self, opt: &crate::utils::Optimizer) {
+        opt.step_w(&mut self.w_q, self.w_q_grad.as_ref().unwrap());
+        opt.step_w(&mut self.w_k, self.w_k_grad.as_ref().unwrap());
+        opt.step_w(&mut self.w_v, self.w_v_grad.as_ref().unwrap());
+        opt.step_w(&mut self.w_o, self.w_o_grad.as_ref().unwrap());
+    }
+
+    fn clear_grads(&mut self) {
+        self.w_q_grad = None;
+        self.w_k_grad = None;
+        self.w_v_grad = None;
+        self.w_o_grad = None;
+        self.input_q = None;
+        self.input_kv = None;
+        self.weights = None;
+        self.q = None;
+        self.k = None;
+        self.v = None;
+        self.concat = None;
     }
 }
 

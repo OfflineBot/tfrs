@@ -6,5 +6,3 @@ mod init;
 mod nn;
 pub use nn::{NeuralNetworkConfig, NeuralNetwork, LayerParams};
 
-mod update;
-

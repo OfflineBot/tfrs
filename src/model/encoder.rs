@@ -7,7 +7,7 @@ use crate::{
         nn::{NeuralNetwork, NeuralNetworkConfig},
         norm::AddNorm
     },
-    utils::{Activation, Loss, Optimizer}};
+    utils::{Activation, Loss, Optimizer, Trainable}};
 
 
 #[derive(Clone, Copy)]
@@ -87,6 +87,22 @@ impl Encoder {
     }
 }
 
+impl Trainable for Encoder {
+    fn update(&mut self, opt: &Optimizer) {
+        self.self_attention.update(opt);
+        self.add_norm1.update(opt);
+        self.ff.update(opt);
+        self.add_norm2.update(opt);
+    }
+
+    fn clear_grads(&mut self) {
+        self.self_attention.clear_grads();
+        self.add_norm1.clear_grads();
+        self.ff.clear_grads();
+        self.add_norm2.clear_grads();
+    }
+}
+
 
 pub struct EncoderBlock {
     layers: Vec<Encoder>,
@@ -108,9 +124,20 @@ impl EncoderBlock {
         }
         input
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.layers.is_empty()
+
+impl Trainable for EncoderBlock {
+    fn update(&mut self, opt: &Optimizer) {
+        for d in self.layers.iter_mut() {
+            d.update(opt);
+        }
+    }
+
+    fn clear_grads(&mut self) {
+        for d in self.layers.iter_mut() {
+            d.clear_grads();
+        }
     }
 }
 
