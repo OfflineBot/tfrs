@@ -46,10 +46,10 @@ pub struct Decoder {
 
     config: DecoderConfig,
 
-    cross_attention: Attention,
+    self_attention: Attention,
     add_norm1: AddNorm,
 
-    self_attention: Attention,
+    cross_attention: Attention,
     add_norm2: AddNorm,
 
     ff: NeuralNetwork,
@@ -77,17 +77,18 @@ impl Decoder {
         }
     }
 
-    pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
-        let mut input = self.cross_attention.forward(x, None);
-        input = self.add_norm1.forward(&input);
+    pub fn forward(&mut self, x: &Array2<f32>, memory: &Array2<f32>, causal_mask: Option<&Array2<f32>>) -> Array2<f32> {
 
-        input = self.self_attention.forward(&input, None);
-        input = self.add_norm2.forward(&input);
+        let sa = self.self_attention.forward(x, x, causal_mask);
+        let x1 = self.add_norm1.forward(x, &sa);
 
-        input = self.ff.forward(&input);
-        input = self.add_norm3.forward(&input);
+        let ca = self.cross_attention.forward(&x1, memory, None);
+        let x2 = self.add_norm2.forward(&x1, &ca);
 
-        input
+        let ff = self.ff.forward(&x2);
+        let x3 = self.add_norm3.forward(&x2, &ff);
+
+        x3
     }
 }
 
@@ -105,14 +106,18 @@ impl DecoderBlock {
         self.layers.push(encoder);
     }
 
-    pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
+    pub fn forward(&mut self, x: &Array2<f32>, memory: &Array2<f32>, causal_mask: Option<&Array2<f32>>) -> Array2<f32> {
         let mut input = x.clone();
 
         for d in self.layers.iter_mut() {
-            input = d.forward(&input);
+            input = d.forward(&input, memory, causal_mask);
         }
 
         input
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
     }
 }
 

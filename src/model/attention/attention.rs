@@ -1,6 +1,6 @@
 use core::f32;
 
-use ndarray::{Array2, Axis};
+use ndarray::{Array2, Array3, Axis};
 
 use crate::utils::xavier_init;
 
@@ -16,13 +16,13 @@ pub struct Attention {
     d_head: usize, // d_model / n_heads
 
     // ===== cache =====
-    q: Option<Array2<f32>>,
-    k: Option<Array2<f32>>,
-    v: Option<Array2<f32>>,
-
-    scores: Option<Array2<f32>>,
-    weights: Option<Array2<f32>>,
-    input: Option<Array2<f32>>,
+    input_q: Option<Array2<f32>>,
+    input_kv: Option<Array2<f32>>,
+    q: Option<Array3<f32>>,
+    k: Option<Array3<f32>>,
+    v: Option<Array3<f32>>,
+    weights: Option<Array3<f32>>,
+    concat: Option<Array2<f32>>,
 }
 
 impl Attention {
@@ -36,51 +36,64 @@ impl Attention {
             w_v: xavier_init(d_model, d_model),
             w_o: xavier_init(d_model, d_model),
 
+            input_q: None,
+            input_kv: None,
             q: None,
             k: None,
             v: None,
-
-            scores: None,
             weights: None,
-            input: None,
+            concat: None,
         }
     }
 
-    pub fn forward(&mut self, x: &Array2<f32>, mask: Option<&Array2<f32>>) -> Array2<f32> {
+    pub fn forward(&mut self, x_q: &Array2<f32>, x_kv: &Array2<f32>, mask: Option<&Array2<f32>>) -> Array2<f32> {
         let scale = (self.d_head as f32).sqrt();
-        let seq = x.shape()[0];
+        let seq_q = x_q.shape()[0];
+        let seq_kv = x_kv.shape()[0];
 
-        let q = x.dot(&self.w_q);
-        let k = x.dot(&self.w_k);
-        let v = x.dot(&self.w_v);
-
-        let q = q.to_shape((seq, self.n_heads, self.d_head))
+        let q = x_q.to_shape((seq_q, self.n_heads, self.d_head))
             .unwrap()
             .permuted_axes([1, 0, 2]);
-        let k = k.to_shape((seq, self.n_heads, self.d_head))
+        let k = x_kv.to_shape((seq_kv, self.n_heads, self.d_head))
             .unwrap()
             .permuted_axes([1, 0, 2]);
-        let v = v.to_shape((seq, self.n_heads, self.d_head))
+        let v = x_kv.to_shape((seq_kv, self.n_heads, self.d_head))
             .unwrap()
             .permuted_axes([1, 0, 2]);
 
-        let mut head_outs = Vec::new();
+        let mut weights = Array3::<f32>::zeros((self.n_heads, seq_q, seq_kv));
+        let mut head_outs = Array3::<f32>::zeros((self.n_heads, seq_q, self.d_head));
+
         for h in 0..self.n_heads {
             let qh = q.index_axis(Axis(0), h).to_owned();
             let kh = k.index_axis(Axis(0), h).to_owned();
             let vh = v.index_axis(Axis(0), h).to_owned();
-            let mut scores = qh.dot(&kh.t()) / scale;
-            if let Some(m) = mask { scores = scores + m; }
-            let weights = Self::softmax(&scores);
-            head_outs.push(weights.dot(&vh));
+
+            let mut s = qh.dot(&kh.t()) / scale;
+            if let Some(m) = mask { s = s + m; }
+            let w = Self::softmax(&s);
+            let o = w.dot(&vh);
+
+            weights.index_axis_mut(Axis(0), h).assign(&w);
+            head_outs.index_axis_mut(Axis(0), h).assign(&o);
         }
 
-        let concat = ndarray::concatenate(
-            Axis(1),
-            &head_outs.iter().map(|h| h.view()).collect::<Vec<_>>()
-        ).unwrap();
+        let concat = head_outs
+            .permuted_axes([1, 0, 2])
+            .to_shape((seq_q, self.n_heads * self.d_head)).unwrap()
+            .to_owned();
 
-        concat.dot(&self.w_o)
+        let out = concat.dot(&self.w_o);
+
+        self.input_q = Some(x_q.clone());
+        self.input_kv = Some(x_kv.clone());
+        self.q = Some(q.to_owned());
+        self.k = Some(k.to_owned());
+        self.v = Some(v.to_owned());
+        self.weights = Some(weights);
+        self.concat = Some(concat);
+
+        out
     }
 
 

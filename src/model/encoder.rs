@@ -77,13 +77,13 @@ impl Encoder {
 
     pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
 
-        let mut input = self.self_attention.forward(x, None);
-        input = self.add_norm1.forward(&input);
+        let attn = self.self_attention.forward(x, x, None);
+        let x1 = self.add_norm1.forward(x, &attn);
 
-        input = self.ff.forward(&input);
-        input = self.add_norm2.forward(&input);
+        let ff = self.ff.forward(&x1);
+        let x2 = self.add_norm2.forward(&x1, &ff);
 
-        input
+        x2
     }
 }
 
@@ -107,6 +107,10 @@ impl EncoderBlock {
             input = e.forward(&input);
         }
         input
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
     }
 }
 

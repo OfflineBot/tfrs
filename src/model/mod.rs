@@ -1,5 +1,6 @@
 
 pub mod attention;
+pub mod embedding;
 pub mod nn;
 pub mod decoder;
 pub mod encoder;

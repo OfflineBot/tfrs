@@ -2,11 +2,17 @@
 
 use ndarray::{Array1, Array2};
 
-use crate::{model::{decoder::{Decoder, DecoderBlock, DecoderConfig}, encoder::{Encoder, EncoderBlock, EncoderConfig}}, utils::{TransformerOptimizer, xavier_init}};
+use crate::{
+    model::{
+        decoder::{Decoder, DecoderBlock, DecoderConfig}, embedding::Embeddings, encoder::{Encoder, EncoderBlock, EncoderConfig}
+    }, 
+    utils::{TransformerOptimizer, xavier_init}
+};
 
 pub struct Transformer {
-
     d_model: usize,
+
+    embeddings: Embeddings,
 
     encoder: EncoderBlock,
     decoder: DecoderBlock,
@@ -21,6 +27,7 @@ impl Transformer {
         Self { 
             encoder: EncoderBlock::new(),
             decoder: DecoderBlock::new(),
+            embeddings: Embeddings,
             d_model,
             w_out: xavier_init(d_model, num_classes),
             b_out: Array1::zeros(num_classes)
@@ -46,20 +53,32 @@ impl Transformer {
     }
 
     // ============== TRAINING =========================
-    pub fn forward(&mut self, src: Array2<f32>) -> Array2<f32> {
-        let encoder_output = self.encoder.forward(&src);
-        let decoder_output = self.decoder.forward(&encoder_output);
+    pub fn forward(&mut self, src: &[usize], tgt: Option<&[usize]>) -> Array2<f32> {
 
-        let linear = decoder_output.dot(&self.w_out) + &self.b_out;
-        linear
+        let src = self.embeddings.forward();
+        let memory = self.encoder.forward(&src);
+
+        let memory = self.encoder.forward(&src);
+        let mask = causal_mask(tgt.shape()[0]);
+        let decoder_output = self.decoder.forward(&tgt, &memory, Some(&mask));
+        decoder_output.dot(&self.w_out) + &self.b_out
     }
 
-    pub fn backward(_delta: Array2<f32>) {
+    pub fn backward(&mut self, _delta: Array2<f32>) {
 
     }
 
-    pub fn step(optimizer: TransformerOptimizer) {
+    pub fn step(&mut self, optimizer: TransformerOptimizer) {
         optimizer.apply();
     }
 }
 
+  pub fn causal_mask(seq: usize) -> Array2<f32> {
+      let mut m = Array2::<f32>::zeros((seq, seq));
+      for i in 0..seq {
+          for j in (i + 1)..seq {
+              m[[i, j]] = f32::NEG_INFINITY;
+          }
+      }
+      m
+  }
