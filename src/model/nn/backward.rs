@@ -21,7 +21,6 @@ impl LayerParams {
         let grad_bias1: Array1<f32> = delta1.sum_axis(Axis(0));
         let delta_out = delta1.dot(&self.weights_1.t());
 
-
         self.weight_grad_2 = Some(grad_weight2);
         self.bias_grad_2 = Some(grad_bias2);
         self.weight_grad_1 = Some(grad_weight1);

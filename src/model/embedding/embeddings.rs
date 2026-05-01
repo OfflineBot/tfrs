@@ -6,7 +6,7 @@ use crate::utils::{Trainable, xavier_init};
 
 
 pub struct Embeddings {
-    pub table: Array2<f32>,    // [vocab_size, d_model]
+    pub table: Array2<f32>,
     vocab_size: usize,
     d_model: usize,
 

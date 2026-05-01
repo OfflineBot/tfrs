@@ -4,5 +4,5 @@ mod forward;
 mod init;
 
 mod nn;
-pub use nn::{NeuralNetworkConfig, NeuralNetwork, LayerParams};
+pub use nn::{NeuralNetworkConfig, NeuralNetwork};
 
