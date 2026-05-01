@@ -91,6 +91,10 @@ impl Trainable for Transformer {
     fn update(&mut self, opt: &crate::utils::Optimizer) {
         self.encoder.update(opt);
         self.decoder.update(opt);
+
+        self.src_embed.update(opt);
+        self.tgt_embed.update(opt);
+
         opt.step_w(&mut self.w_out, self.w_out_grad.as_ref().unwrap());
         opt.step_b(&mut self.b_out, self.b_out_grad.as_ref().unwrap());
     }
@@ -98,6 +102,10 @@ impl Trainable for Transformer {
     fn clear_grads(&mut self) {
         self.encoder.clear_grads();
         self.decoder.clear_grads();
+
+        self.src_embed.clear_grads();
+        self.tgt_embed.clear_grads();
+
         self.w_out_grad = None;
         self.b_out_grad = None;
     }

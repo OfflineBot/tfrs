@@ -3,7 +3,7 @@ use crate::{
         encoder::EncoderConfig, transformer::Transformer
     },
     utils::{
-        Activation, Loss, Optimizer
+        Activation, Loss, Optimizer, Trainable
     }
 };
 
