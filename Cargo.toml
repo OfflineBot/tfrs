@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 ndarray = "0.17.2"
 ndarray-rand = "0.16.0"
+tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
