@@ -46,11 +46,15 @@ impl Transformer {
     }
 
     // ============== TRAINING =========================
-    pub fn forward(src: Array2<f32>, target: Array2<f32>) -> Array2<f32> {
-        Array2::zeros((0, 0))
+    pub fn forward(&mut self, src: Array2<f32>) -> Array2<f32> {
+        let encoder_output = self.encoder.forward(&src);
+        let decoder_output = self.decoder.forward(&encoder_output);
+
+        let linear = decoder_output.dot(&self.w_out) + &self.b_out;
+        linear
     }
 
-    pub fn backward(delta: Array2<f32>) {
+    pub fn backward(_delta: Array2<f32>) {
 
     }
 

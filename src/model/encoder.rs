@@ -1,4 +1,6 @@
 
+use ndarray::Array2;
+
 use crate::{
     model::{
         attention::Attention,
@@ -72,6 +74,17 @@ impl Encoder {
             add_norm2: AddNorm::new(d_model, config.eps),
         }
     }
+
+    pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
+
+        let mut input = self.self_attention.forward(x, None);
+        input = self.add_norm1.forward(&input);
+
+        input = self.ff.forward(&input);
+        input = self.add_norm2.forward(&input);
+
+        input
+    }
 }
 
 
@@ -86,6 +99,14 @@ impl EncoderBlock {
 
     pub fn insert(&mut self, encoder: Encoder) {
         self.layers.push(encoder);
+    }
+
+    pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
+        let mut input = x.clone();
+        for e in self.layers.iter_mut() {
+            input = e.forward(&input);
+        }
+        input
     }
 }
 

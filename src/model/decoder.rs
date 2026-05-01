@@ -76,6 +76,19 @@ impl Decoder {
             add_norm3: AddNorm::new(d_model, config.eps),
         }
     }
+
+    pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
+        let mut input = self.cross_attention.forward(x, None);
+        input = self.add_norm1.forward(&input);
+
+        input = self.self_attention.forward(&input, None);
+        input = self.add_norm2.forward(&input);
+
+        input = self.ff.forward(&input);
+        input = self.add_norm3.forward(&input);
+
+        input
+    }
 }
 
 
@@ -90,6 +103,16 @@ impl DecoderBlock {
 
     pub fn insert(&mut self, encoder: Decoder) {
         self.layers.push(encoder);
+    }
+
+    pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
+        let mut input = x.clone();
+
+        for d in self.layers.iter_mut() {
+            input = d.forward(&input);
+        }
+
+        input
     }
 }
 
