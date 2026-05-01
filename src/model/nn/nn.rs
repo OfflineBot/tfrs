@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use ndarray::{Array1, Array2};
-use crate::utils::{Activation, Loss, Optimizer, Trainable};
+use crate::utils::{Activation, AdamState1, AdamState2, Loss, Optimizer, Trainable};
 
 
 /// per definition *1 hidden layer* with *ReLU* activation
@@ -45,14 +45,19 @@ pub struct LayerParams {
 
     pub bias_grad_1: Option<Array1<f32>>,
     pub bias_grad_2: Option<Array1<f32>>,
+
+    pub weight_state_1: AdamState2,
+    pub weight_state_2: AdamState2,
+    pub bias_state_1:   AdamState1,
+    pub bias_state_2:   AdamState1,
 }
 
 impl Trainable for LayerParams {
     fn update(&mut self, opt: &Optimizer) {
-        opt.step_w(&mut self.weights_1, self.weight_grad_1.as_ref().unwrap());
-        opt.step_w(&mut self.weights_2, self.weight_grad_2.as_ref().unwrap());
-        opt.step_b(&mut self.biases_1, self.bias_grad_1.as_ref().unwrap());
-        opt.step_b(&mut self.biases_2, self.bias_grad_2.as_ref().unwrap());
+        opt.step_w(&mut self.weights_1, self.weight_grad_1.as_ref().unwrap(), &mut self.weight_state_1);
+        opt.step_w(&mut self.weights_2, self.weight_grad_2.as_ref().unwrap(), &mut self.weight_state_2);
+        opt.step_b(&mut self.biases_1,  self.bias_grad_1.as_ref().unwrap(),   &mut self.bias_state_1);
+        opt.step_b(&mut self.biases_2,  self.bias_grad_2.as_ref().unwrap(),   &mut self.bias_state_2);
     }
 
     fn clear_grads(&mut self) {
@@ -105,6 +110,12 @@ impl NeuralNetwork {
         };
         let error = self.loss.deriv_loss(truth, &output);
         self.layer.backward(error, self.activation);
+    }
+
+    /// Delta-passthrough backward used inside the transformer.
+    /// Takes upstream dL/dOutput, returns dL/dInput.
+    pub fn backward_delta(&mut self, delta: Array2<f32>) -> Array2<f32> {
+        self.layer.backward(delta, self.activation)
     }
 
     pub fn item_loss(&self, truth: &Array2<f32>) -> f32 {

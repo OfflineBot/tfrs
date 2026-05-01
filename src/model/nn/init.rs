@@ -1,5 +1,8 @@
 use ndarray::Array1;
-use crate::{model::nn::nn::LayerParams, utils::xavier_init};
+use crate::{
+    model::nn::nn::LayerParams,
+    utils::{AdamState1, AdamState2, xavier_init},
+};
 
 impl LayerParams {
 
@@ -22,6 +25,11 @@ impl LayerParams {
 
             bias_grad_1: None,
             bias_grad_2: None,
+
+            weight_state_1: AdamState2::default(),
+            weight_state_2: AdamState2::default(),
+            bias_state_1:   AdamState1::default(),
+            bias_state_2:   AdamState1::default(),
         }
     }
 }

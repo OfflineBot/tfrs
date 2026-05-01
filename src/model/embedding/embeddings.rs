@@ -2,7 +2,7 @@
 
 use ndarray::Array2;
 
-use crate::utils::{Trainable, xavier_init};
+use crate::utils::{AdamState2, Trainable, xavier_init};
 
 
 pub struct Embeddings {
@@ -15,6 +15,8 @@ pub struct Embeddings {
 
     // ===== gradients =====
     pub table_grad: Option<Array2<f32>>,
+
+    pub table_state: AdamState2,
 }
 
 
@@ -26,6 +28,22 @@ impl Embeddings {
             d_model,
             last_ids: None,
             table_grad: None,
+            table_state: AdamState2::default(),
+        }
+    }
+
+    pub fn backward(&mut self, d_out: &Array2<f32>) {
+        let scale = (self.d_model as f32).sqrt();
+        let ids   = self.last_ids.as_ref().expect("forward must run before backward").clone();
+
+        let grad = self.table_grad.get_or_insert_with(
+            || Array2::<f32>::zeros((self.vocab_size, self.d_model))
+        );
+
+        for (i, &id) in ids.iter().enumerate() {
+            let row = &d_out.row(i) * scale;
+            let mut dst = grad.row_mut(id);
+            dst += &row;
         }
     }
 
@@ -44,7 +62,7 @@ impl Embeddings {
 
 impl Trainable for Embeddings {
     fn update(&mut self, opt: &crate::utils::Optimizer) {
-        opt.step_w(&mut self.table, self.table_grad.as_ref().unwrap());
+        opt.step_w(&mut self.table, self.table_grad.as_ref().unwrap(), &mut self.table_state);
     }
 
     fn clear_grads(&mut self) {

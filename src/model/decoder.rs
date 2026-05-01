@@ -78,9 +78,9 @@ impl Decoder {
     }
 
     pub fn forward(
-        &mut self, 
-        x: &Array2<f32>, 
-        memory: Option<&Array2<f32>>, 
+        &mut self,
+        x: &Array2<f32>,
+        memory: Option<&Array2<f32>>,
         causal_mask: Option<&Array2<f32>>
     ) -> Array2<f32> {
         let sa = self.self_attention.forward(x, x, causal_mask);
@@ -95,6 +95,24 @@ impl Decoder {
         let ff = self.ff.forward(&x2);
         let x3 = self.add_norm3.forward(&x2, &ff);
         x3
+    }
+
+    pub fn backward(&mut self, d_out: Array2<f32>, had_memory: bool) -> (Array2<f32>, Option<Array2<f32>>) {
+        let (d_x2_a, d_ff)   = self.add_norm3.backward(&d_out);
+        let d_x2_b           = self.ff.backward_delta(d_ff);
+        let d_x2             = d_x2_a + d_x2_b;
+
+        let (d_x1, d_memory) = if had_memory {
+            let (d_x1_a, d_ca)        = self.add_norm2.backward(&d_x2);
+            let (d_q, d_kv)           = self.cross_attention.backward(&d_ca);
+            (d_x1_a + d_q, Some(d_kv))
+        } else {
+            (d_x2, None)
+        };
+
+        let (d_x_a, d_sa)    = self.add_norm1.backward(&d_x1);
+        let (d_x_q, d_x_kv)  = self.self_attention.backward(&d_sa);
+        (d_x_a + d_x_q + d_x_kv, d_memory)
     }
 }
 
@@ -141,6 +159,25 @@ impl DecoderBlock {
         }
 
         input
+    }
+
+    /// Returns (d_x, d_memory_total). d_memory is summed across layers (memory was shared).
+    pub fn backward(&mut self, d_out: Array2<f32>, had_memory: bool) -> (Array2<f32>, Option<Array2<f32>>) {
+        let mut delta      = d_out;
+        let mut d_memory: Option<Array2<f32>> = None;
+
+        for d in self.layers.iter_mut().rev() {
+            let (d_x, d_mem) = d.backward(delta, had_memory);
+            delta = d_x;
+            if let Some(dm) = d_mem {
+                d_memory = Some(match d_memory.take() {
+                    Some(acc) => acc + dm,
+                    None      => dm,
+                });
+            }
+        }
+
+        (delta, d_memory)
     }
 }
 

@@ -78,12 +78,22 @@ impl Encoder {
     pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
 
         let attn = self.self_attention.forward(x, x, None);
-        let x1 = self.add_norm1.forward(x, &attn);
+        let x1   = self.add_norm1.forward(x, &attn);
 
-        let ff = self.ff.forward(&x1);
-        let x2 = self.add_norm2.forward(&x1, &ff);
+        let ff   = self.ff.forward(&x1);
+        let x2   = self.add_norm2.forward(&x1, &ff);
 
         x2
+    }
+
+    pub fn backward(&mut self, d_out: Array2<f32>) -> Array2<f32> {
+        let (d_x1_a, d_ff)  = self.add_norm2.backward(&d_out);
+        let d_x1_b          = self.ff.backward_delta(d_ff);
+        let d_x1            = d_x1_a + d_x1_b;
+
+        let (d_x_a, d_attn) = self.add_norm1.backward(&d_x1);
+        let (d_x_q, d_x_kv) = self.self_attention.backward(&d_attn);
+        d_x_a + d_x_q + d_x_kv
     }
 }
 
@@ -123,6 +133,14 @@ impl EncoderBlock {
             input = e.forward(&input);
         }
         input
+    }
+
+    pub fn backward(&mut self, d_out: Array2<f32>) -> Array2<f32> {
+        let mut delta = d_out;
+        for e in self.layers.iter_mut().rev() {
+            delta = e.backward(delta);
+        }
+        delta
     }
 }
 
