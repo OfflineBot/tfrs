@@ -1,4 +1,5 @@
 
+use std::io::{Read, Result, Write};
 use ndarray::Array2;
 
 use crate::{
@@ -75,6 +76,20 @@ impl Encoder {
         }
     }
 
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        self.self_attention.save_params(w)?;
+        self.add_norm1.save_params(w)?;
+        self.ff.save_params(w)?;
+        self.add_norm2.save_params(w)
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        self.self_attention.load_params(r)?;
+        self.add_norm1.load_params(r)?;
+        self.ff.load_params(r)?;
+        self.add_norm2.load_params(r)
+    }
+
     pub fn forward(&mut self, x: &Array2<f32>) -> Array2<f32> {
 
         let attn = self.self_attention.forward(x, x, None);
@@ -134,6 +149,18 @@ impl EncoderBlock {
         }
         input
     }
+
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        for e in &self.layers { e.save_params(w)?; }
+        Ok(())
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        for e in self.layers.iter_mut() { e.load_params(r)?; }
+        Ok(())
+    }
+
+    pub fn n_layers(&self) -> usize { self.layers.len() }
 
     pub fn backward(&mut self, d_out: Array2<f32>) -> Array2<f32> {
         let mut delta = d_out;

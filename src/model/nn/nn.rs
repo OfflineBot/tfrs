@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
+use std::io::{Read, Result, Write};
 use ndarray::{Array1, Array2};
-use crate::utils::{Activation, AdamState1, AdamState2, Loss, Optimizer, Trainable};
+use crate::utils::{Activation, AdamState1, AdamState2, Loss, Optimizer, Trainable, persist};
 
 
 /// per definition *1 hidden layer* with *ReLU* activation
@@ -50,6 +51,32 @@ pub struct LayerParams {
     pub weight_state_2: AdamState2,
     pub bias_state_1:   AdamState1,
     pub bias_state_2:   AdamState1,
+}
+
+impl LayerParams {
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        persist::write_array2(w, &self.weights_1)?;
+        persist::write_array1(w, &self.biases_1)?;
+        persist::write_array2(w, &self.weights_2)?;
+        persist::write_array1(w, &self.biases_2)
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        self.weights_1 = persist::read_array2(r)?;
+        self.biases_1  = persist::read_array1(r)?;
+        self.weights_2 = persist::read_array2(r)?;
+        self.biases_2  = persist::read_array1(r)?;
+        Ok(())
+    }
+}
+
+impl NeuralNetwork {
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        self.layer.save_params(w)
+    }
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        self.layer.load_params(r)
+    }
 }
 
 impl Trainable for LayerParams {

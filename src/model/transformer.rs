@@ -1,12 +1,16 @@
 #![allow(dead_code)]
 
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Result};
+use std::path::Path;
+
 use ndarray::{Array1, Array2};
 
 use crate::{
     model::{
         decoder::{Decoder, DecoderBlock, DecoderConfig}, embedding::{Embeddings, positional_encoding}, encoder::{Encoder, EncoderBlock, EncoderConfig}
-    }, 
-    utils::{AdamState1, AdamState2, Trainable, xavier_init}
+    },
+    utils::{AdamState1, AdamState2, Trainable, persist, xavier_init}
 };
 
 pub struct Transformer {
@@ -72,6 +76,63 @@ impl Transformer {
         for d in decoder {
             self.decoder.insert(Decoder::new(d, self.d_model));
         }
+    }
+
+    // ============== PERSISTENCE ======================
+    /// Save magic header + architecture metadata + all learnable weights to `path`.
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let f = File::create(path)?;
+        let mut w = BufWriter::new(f);
+
+        persist::write_magic(&mut w)?;
+        persist::write_u32(&mut w, self.d_model as u32)?;
+        persist::write_u32(&mut w, self.src_embed.table.shape()[0] as u32)?;
+        persist::write_u32(&mut w, self.tgt_embed.table.shape()[0] as u32)?;
+        persist::write_u32(&mut w, self.b_out.len() as u32)?;
+        persist::write_u32(&mut w, self.encoder.n_layers() as u32)?;
+        persist::write_u32(&mut w, self.decoder.n_layers() as u32)?;
+
+        self.src_embed.save_params(&mut w)?;
+        self.tgt_embed.save_params(&mut w)?;
+        self.encoder.save_params(&mut w)?;
+        self.decoder.save_params(&mut w)?;
+
+        persist::write_array2(&mut w, &self.w_out)?;
+        persist::write_array1(&mut w, &self.b_out)?;
+        Ok(())
+    }
+
+    /// Load weights from `path` into `self`. The model must already have the
+    /// matching architecture (build it the same way you did before saving,
+    /// then call this). Architectural ints in the header are checked.
+    pub fn load_from_file<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let f = File::open(path)?;
+        let mut r = BufReader::new(f);
+
+        persist::read_magic(&mut r)?;
+        let d_model     = persist::read_u32(&mut r)? as usize;
+        let src_vocab   = persist::read_u32(&mut r)? as usize;
+        let tgt_vocab   = persist::read_u32(&mut r)? as usize;
+        let num_classes = persist::read_u32(&mut r)? as usize;
+        let n_enc       = persist::read_u32(&mut r)? as usize;
+        let n_dec       = persist::read_u32(&mut r)? as usize;
+
+        let bad = |msg: &str| std::io::Error::new(std::io::ErrorKind::InvalidData, msg.to_string());
+        if d_model     != self.d_model                      { return Err(bad("d_model mismatch")); }
+        if src_vocab   != self.src_embed.table.shape()[0]   { return Err(bad("src_vocab mismatch")); }
+        if tgt_vocab   != self.tgt_embed.table.shape()[0]   { return Err(bad("tgt_vocab mismatch")); }
+        if num_classes != self.b_out.len()                  { return Err(bad("num_classes mismatch")); }
+        if n_enc       != self.encoder.n_layers()           { return Err(bad("encoder layer count mismatch")); }
+        if n_dec       != self.decoder.n_layers()           { return Err(bad("decoder layer count mismatch")); }
+
+        self.src_embed.load_params(&mut r)?;
+        self.tgt_embed.load_params(&mut r)?;
+        self.encoder.load_params(&mut r)?;
+        self.decoder.load_params(&mut r)?;
+
+        self.w_out = persist::read_array2(&mut r)?;
+        self.b_out = persist::read_array1(&mut r)?;
+        Ok(())
     }
 
     // ============== TRAINING =========================

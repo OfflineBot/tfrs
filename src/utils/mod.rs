@@ -11,3 +11,5 @@ pub use optimizer::{AdamState1, AdamState2, Optimizer, Trainable};
 mod xavier;
 pub use xavier::xavier_init;
 
+pub mod persist;
+

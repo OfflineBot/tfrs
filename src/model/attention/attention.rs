@@ -2,7 +2,8 @@ use core::f32;
 
 use ndarray::{Array2, Array3, Axis};
 
-use crate::utils::{AdamState2, Trainable, xavier_init};
+use std::io::{Read, Result, Write};
+use crate::utils::{AdamState2, Trainable, persist, xavier_init};
 
 
 #[derive(Clone)]
@@ -64,6 +65,22 @@ impl Attention {
             weights: None,
             concat: None,
         }
+    }
+
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        persist::write_array2(w, &self.w_q)?;
+        persist::write_array2(w, &self.w_k)?;
+        persist::write_array2(w, &self.w_v)?;
+        persist::write_array2(w, &self.w_o)?;
+        Ok(())
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        self.w_q = persist::read_array2(r)?;
+        self.w_k = persist::read_array2(r)?;
+        self.w_v = persist::read_array2(r)?;
+        self.w_o = persist::read_array2(r)?;
+        Ok(())
     }
 
     pub fn forward(&mut self, x_q: &Array2<f32>, x_kv: &Array2<f32>, mask: Option<&Array2<f32>>) -> Array2<f32> {

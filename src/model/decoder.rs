@@ -1,4 +1,5 @@
 
+use std::io::{Read, Result, Write};
 use ndarray::Array2;
 
 use crate::{model::{attention::Attention, nn::{NeuralNetwork, NeuralNetworkConfig}, norm::AddNorm}, utils::{Activation, Loss, Optimizer, Trainable}};
@@ -75,6 +76,24 @@ impl Decoder {
             add_norm2: AddNorm::new(d_model, config.eps),
             add_norm3: AddNorm::new(d_model, config.eps),
         }
+    }
+
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        self.self_attention.save_params(w)?;
+        self.add_norm1.save_params(w)?;
+        self.cross_attention.save_params(w)?;
+        self.add_norm2.save_params(w)?;
+        self.ff.save_params(w)?;
+        self.add_norm3.save_params(w)
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        self.self_attention.load_params(r)?;
+        self.add_norm1.load_params(r)?;
+        self.cross_attention.load_params(r)?;
+        self.add_norm2.load_params(r)?;
+        self.ff.load_params(r)?;
+        self.add_norm3.load_params(r)
     }
 
     pub fn forward(
@@ -160,6 +179,18 @@ impl DecoderBlock {
 
         input
     }
+
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        for d in &self.layers { d.save_params(w)?; }
+        Ok(())
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        for d in self.layers.iter_mut() { d.load_params(r)?; }
+        Ok(())
+    }
+
+    pub fn n_layers(&self) -> usize { self.layers.len() }
 
     /// Returns (d_x, d_memory_total). d_memory is summed across layers (memory was shared).
     pub fn backward(&mut self, d_out: Array2<f32>, had_memory: bool) -> (Array2<f32>, Option<Array2<f32>>) {

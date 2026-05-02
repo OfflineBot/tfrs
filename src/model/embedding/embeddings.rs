@@ -2,7 +2,8 @@
 
 use ndarray::Array2;
 
-use crate::utils::{AdamState2, Trainable, xavier_init};
+use std::io::{Read, Result, Write};
+use crate::utils::{AdamState2, Trainable, persist, xavier_init};
 
 
 pub struct Embeddings {
@@ -47,6 +48,17 @@ impl Embeddings {
         }
     }
 
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        persist::write_array2(w, &self.table)
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        let t = persist::read_array2(r)?;
+        assert_eq!(t.shape(), self.table.shape(), "embedding shape mismatch");
+        self.table = t;
+        Ok(())
+    }
+
     pub fn forward(&mut self, ids: &[usize]) -> Array2<f32> {
         let scale = (self.d_model as f32).sqrt();
         let mut out = Array2::<f32>::zeros((ids.len(), self.d_model));
@@ -62,7 +74,11 @@ impl Embeddings {
 
 impl Trainable for Embeddings {
     fn update(&mut self, opt: &crate::utils::Optimizer) {
-        opt.step_w(&mut self.table, self.table_grad.as_ref().unwrap(), &mut self.table_state);
+        // Skip when this embedding wasn't used this step (e.g. tgt_embed in
+        // encoder-only training). The corresponding weight stays untouched.
+        if let Some(g) = self.table_grad.as_ref() {
+            opt.step_w(&mut self.table, g, &mut self.table_state);
+        }
     }
 
     fn clear_grads(&mut self) {

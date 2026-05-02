@@ -1,6 +1,7 @@
+use std::io::{Read, Result, Write};
 use ndarray::{Array1, Array2, Axis};
 
-use crate::utils::{AdamState1, Trainable};
+use crate::utils::{AdamState1, Trainable, persist};
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -35,6 +36,17 @@ impl AddNorm {
             gamma_state: AdamState1::default(),
             beta_state:  AdamState1::default(),
         }
+    }
+
+    pub fn save_params<W: Write>(&self, w: &mut W) -> Result<()> {
+        persist::write_array1(w, &self.gamma)?;
+        persist::write_array1(w, &self.beta)
+    }
+
+    pub fn load_params<R: Read>(&mut self, r: &mut R) -> Result<()> {
+        self.gamma = persist::read_array1(r)?;
+        self.beta  = persist::read_array1(r)?;
+        Ok(())
     }
 
     pub fn backward(&mut self, d_out: &Array2<f32>) -> (Array2<f32>, Array2<f32>) {
