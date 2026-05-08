@@ -1,0 +1,66 @@
+name: release
+
+# Triggered by pushing a tag of the form v* (e.g. v0.1.0).
+# Builds the `tfrs` binary on Linux / macOS / Windows and uploads each
+# artifact to the GitHub Release for that tag (creating the release if
+# `make release` hasn't already). The trained model (mail_model.bin)
+# is NOT built in CI — it requires the local dataset and gets uploaded
+# separately by `make release`.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 is built and uploaded by `make release` directly,
+          # so CI skips it — that avoids a duplicate-asset conflict on the
+          # release page.
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: tfrs
+            asset:    tfrs-macos-x86_64
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact: tfrs
+            asset:    tfrs-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: tfrs.exe
+            asset:    tfrs-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: rename artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${{ matrix.artifact }}" "dist/${{ matrix.asset }}"
+
+      - name: upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.asset }}
+          fail_on_unmatched_files: true

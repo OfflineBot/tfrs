@@ -12,7 +12,7 @@ use std::io::{Read, Result, Write};
 use ndarray::{Array1, Array2};
 
 pub const MAGIC: &[u8; 4] = b"TRFM";
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 pub fn write_u32<W: Write>(w: &mut W, v: u32) -> Result<()> {
     w.write_all(&v.to_le_bytes())
@@ -84,6 +84,38 @@ pub fn read_array1<R: Read>(r: &mut R) -> Result<Array1<f32>> {
     };
     r.read_exact(bytes)?;
     Ok(Array1::from_vec(data))
+}
+
+pub fn write_string<W: Write>(w: &mut W, s: &str) -> Result<()> {
+    let bytes = s.as_bytes();
+    write_u32(w, bytes.len() as u32)?;
+    w.write_all(bytes)
+}
+
+pub fn read_string<R: Read>(r: &mut R) -> Result<String> {
+    let n = read_u32(r)? as usize;
+    let mut buf = vec![0u8; n];
+    r.read_exact(&mut buf)?;
+    String::from_utf8(buf).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, format!("utf8: {e}"))
+    })
+}
+
+pub fn write_strings<W: Write>(w: &mut W, items: &[String]) -> Result<()> {
+    write_u32(w, items.len() as u32)?;
+    for s in items {
+        write_string(w, s)?;
+    }
+    Ok(())
+}
+
+pub fn read_strings<R: Read>(r: &mut R) -> Result<Vec<String>> {
+    let n = read_u32(r)? as usize;
+    let mut out = Vec::with_capacity(n);
+    for _ in 0..n {
+        out.push(read_string(r)?);
+    }
+    Ok(out)
 }
 
 pub fn write_magic<W: Write>(w: &mut W) -> Result<()> {

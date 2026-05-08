@@ -19,6 +19,13 @@ use std::path::Path;
 pub const DEFAULT_TOKENIZER_PATH: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tokenizer.json");
 
+/// The same `tokenizer.json` baked directly into the compiled binary so the
+/// produced executable is self-contained: ship just `tfrs` (and the trained
+/// `mail_model.bin`) and it works anywhere — no need to also distribute
+/// `assets/tokenizer.json`.
+pub const DEFAULT_TOKENIZER_BYTES: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tokenizer.json"));
+
 
 // ============================================================================
 // Trait — generic interface, replaceable backend
@@ -79,7 +86,17 @@ impl HfTokenizer {
         Ok(Self::wrap(inner))
     }
 
-    /// Load the bundled default tokenizer (`assets/tokenizer.json`).
+    /// Load any `tokenizer.json` from a byte slice. Use together with
+    /// `include_bytes!` to ship a self-contained binary.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, TokenizerError> {
+        let inner = tokenizers::Tokenizer::from_bytes(bytes)
+            .map_err(|e| TokenizerError(format!("from_bytes: {e}")))?;
+        Ok(Self::wrap(inner))
+    }
+
+    /// Load the bundled default tokenizer — embedded into the binary at
+    /// compile time, so this works even when the binary is moved away from
+    /// the source tree.
     /// This is the **gbert** WordPiece tokenizer (deepset, 31 102 tokens, cased)
     /// — a German-first vocabulary trained on German Wikipedia, OpenLegalData,
     /// news and Common Crawl. Picked deliberately for the email use case:
@@ -88,7 +105,7 @@ impl HfTokenizer {
     /// Umlauts and ß cleanly. English text still tokenizes correctly but
     /// fragments more — acceptable for emails that are mostly German.
     pub fn default_pretrained() -> Result<Self, TokenizerError> {
-        Self::from_file(DEFAULT_TOKENIZER_PATH)
+        Self::from_bytes(DEFAULT_TOKENIZER_BYTES)
     }
 
     fn wrap(inner: tokenizers::Tokenizer) -> Self {

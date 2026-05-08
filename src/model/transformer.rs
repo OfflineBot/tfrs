@@ -13,6 +13,17 @@ use crate::{
     utils::{AdamState1, AdamState2, Trainable, persist, xavier_init}
 };
 
+#[derive(Debug, Clone)]
+pub struct TransformerHeader {
+    pub d_model: usize,
+    pub src_vocab: usize,
+    pub tgt_vocab: usize,
+    pub num_classes: usize,
+    pub n_enc_layers: usize,
+    pub n_dec_layers: usize,
+    pub categories: Vec<String>,
+}
+
 pub struct Transformer {
     d_model: usize,
 
@@ -79,8 +90,11 @@ impl Transformer {
     }
 
     // ============== PERSISTENCE ======================
-    /// Save magic header + architecture metadata + all learnable weights to `path`.
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    /// Save magic header + architecture metadata + label names + all learnable
+    /// weights to `path`. `categories` is the ordered list of label names (one
+    /// per output class) so prediction can map logits back to human-readable
+    /// tags without needing the original dataset.
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P, categories: &[String]) -> Result<()> {
         let f = File::create(path)?;
         let mut w = BufWriter::new(f);
 
@@ -92,6 +106,16 @@ impl Transformer {
         persist::write_u32(&mut w, self.encoder.n_layers() as u32)?;
         persist::write_u32(&mut w, self.decoder.n_layers() as u32)?;
 
+        // category names — must match num_classes
+        assert_eq!(
+            categories.len(),
+            self.b_out.len(),
+            "category count {} must match num_classes {}",
+            categories.len(),
+            self.b_out.len()
+        );
+        persist::write_strings(&mut w, categories)?;
+
         self.src_embed.save_params(&mut w)?;
         self.tgt_embed.save_params(&mut w)?;
         self.encoder.save_params(&mut w)?;
@@ -102,10 +126,11 @@ impl Transformer {
         Ok(())
     }
 
-    /// Load weights from `path` into `self`. The model must already have the
-    /// matching architecture (build it the same way you did before saving,
-    /// then call this). Architectural ints in the header are checked.
-    pub fn load_from_file<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+    /// Load weights from `path` into `self`, returning the category names.
+    /// The model must already have the matching architecture (build it the
+    /// same way you did before saving, then call this). Architectural ints
+    /// in the header are checked.
+    pub fn load_from_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<String>> {
         let f = File::open(path)?;
         let mut r = BufReader::new(f);
 
@@ -125,6 +150,11 @@ impl Transformer {
         if n_enc       != self.encoder.n_layers()           { return Err(bad("encoder layer count mismatch")); }
         if n_dec       != self.decoder.n_layers()           { return Err(bad("decoder layer count mismatch")); }
 
+        let categories = persist::read_strings(&mut r)?;
+        if categories.len() != num_classes {
+            return Err(bad("category count mismatch"));
+        }
+
         self.src_embed.load_params(&mut r)?;
         self.tgt_embed.load_params(&mut r)?;
         self.encoder.load_params(&mut r)?;
@@ -132,7 +162,34 @@ impl Transformer {
 
         self.w_out = persist::read_array2(&mut r)?;
         self.b_out = persist::read_array1(&mut r)?;
-        Ok(())
+        Ok(categories)
+    }
+
+    /// Read just the header of a saved model — useful when you need to know
+    /// the architecture / category count before constructing an empty model
+    /// to load into.
+    pub fn read_header<P: AsRef<Path>>(path: P) -> Result<TransformerHeader> {
+        let f = File::open(path)?;
+        let mut r = BufReader::new(f);
+
+        persist::read_magic(&mut r)?;
+        let d_model     = persist::read_u32(&mut r)? as usize;
+        let src_vocab   = persist::read_u32(&mut r)? as usize;
+        let tgt_vocab   = persist::read_u32(&mut r)? as usize;
+        let num_classes = persist::read_u32(&mut r)? as usize;
+        let n_enc       = persist::read_u32(&mut r)? as usize;
+        let n_dec       = persist::read_u32(&mut r)? as usize;
+        let categories  = persist::read_strings(&mut r)?;
+
+        Ok(TransformerHeader {
+            d_model,
+            src_vocab,
+            tgt_vocab,
+            num_classes,
+            n_enc_layers: n_enc,
+            n_dec_layers: n_dec,
+            categories,
+        })
     }
 
     // ============== TRAINING =========================
